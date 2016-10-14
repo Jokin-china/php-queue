@@ -1,0 +1,21 @@
+{
+  "name": "d1studio/php-queue",
+  "description": "php-queue 是一个队列程序",
+  "keywords": ["command", "php-queue"],
+  "homepage": "https://github.com/d1studio/php-queue",
+  "type": "library",
+  "license": "BSD-3-Clause",
+  "support": {
+  },
+  "minimum-stability": "dev",
+  "require": {
+    "php": ">=5.4.0",
+    "catfan/Medoo": "^1.1"
+
+  },
+  "require-dev": {
+  },
+  "autoload": {
+    "psr-4": {"d1studio\\php_queue\\": "src/"}
+  }
+}
