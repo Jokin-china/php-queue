@@ -108,19 +108,21 @@ class MysqlQueue extends BaseQueue{
      * @param int    $ttl
      * @throws \Exception
      */
-    public function push($data,$ttl = 0 ){
+    public function push($data,$ttl = 1 ){
         if(!is_string($data)){
             throw new \Exception("入队列必须是字符串");
         }
         if(!is_numeric($ttl)){
             throw new \Exception("TTL必须是数字");
         }
-        $insert_data = [
-            'data'          => json_encode(['data'=>$data,'ttl'=>$ttl],JSON_UNESCAPED_UNICODE),
-            'create_time'   => time(),
-            'priority'      => 1,
-        ];
-        $this->db->insert($this->queue_table_name,$insert_data);
+        if($ttl>=1){
+            $insert_data = [
+                'data'          => json_encode(['data'=>$data,'ttl'=>$ttl],JSON_UNESCAPED_UNICODE),
+                'create_time'   => time(),
+                'priority'      => 1,
+            ];
+            $this->db->insert($this->queue_table_name,$insert_data);
+        }
     }
 
     public function isEmpty(){
