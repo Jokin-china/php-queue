@@ -23,10 +23,11 @@ interface QueueInterface {
     public function pop();
     /**
      * 入队
-     * @param $data
+     * @param string $data 数据
+     * @param int    $ttl  TTL
      * @throws \Exception
      */
-    public function push($data);
+    public function push($data,$ttl = 0);
 
     /**
      * 队列是否为空

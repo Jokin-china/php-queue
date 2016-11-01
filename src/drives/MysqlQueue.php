@@ -92,7 +92,8 @@ class MysqlQueue extends BaseQueue{
             ]);
             if ($flag) {
                 $this->db->query('commit');
-                $result = new Message($row['data']);
+                $data = json_decode($row['data'],true);
+                $result = new Message($data['data'],$data['ttl']);
             } else {
                 $this->db->query('rollback');
             }
@@ -102,19 +103,24 @@ class MysqlQueue extends BaseQueue{
         return $result;
     }
     /**
-     * @param $data
+     * 进入队列
+     * @param string $data
+     * @param int    $ttl
      * @throws \Exception
      */
-    public function push($data){
+    public function push($data,$ttl = 0 ){
         if(!is_string($data)){
             throw new \Exception("入队列必须是字符串");
         }
+        if(!is_numeric($ttl)){
+            throw new \Exception("TTL必须是数字");
+        }
         $insert_data = [
-            'data'          => $data,
+            'data'          => json_encode(['data'=>$data,'ttl'=>$ttl],JSON_UNESCAPED_UNICODE),
             'create_time'   => time(),
             'priority'      => 1,
         ];
-        $flag = $this->db->insert($this->queue_table_name,$insert_data);
+        $this->db->insert($this->queue_table_name,$insert_data);
     }
 
     public function isEmpty(){
