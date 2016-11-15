@@ -5,6 +5,7 @@
 namespace d1studio\php_queue\drives;
 
 use d1studio\php_queue\Message;
+use PDO;
 
 /**
  * 队列驱动-MySQL
@@ -54,7 +55,7 @@ class MysqlQueue extends BaseQueue{
                     `status` TINYINT(1) NOT NULL DEFAULT 0,
                     PRIMARY KEY (`id`)
                 ) ENGINE = InnoDB  DEFAULT CHARACTER SET = utf8";
-            $this->db->query($sql);
+            $this->db->exec($sql);
         }
     }
     /**
@@ -65,7 +66,17 @@ class MysqlQueue extends BaseQueue{
     public function __construct($queue_name, array $config){
         parent::__construct($queue_name, $config);
         $db_config = array_merge($this->default_config,$this->config);
-        $this->db = new \medoo($db_config);
+        $this->db = new PDO(
+            sprintf(
+                "mysql:host=%s;dbname=%s;port=%s;charset=%s;",
+                $db_config['server'],
+                $db_config['database_name'],
+                $db_config['port'],
+                $db_config['charset']
+            ),
+            $db_config['username'],
+            $db_config['password']
+        );
         $this->queue_table_name = 'queue_'.$queue_name;
     }
     /**
@@ -75,30 +86,31 @@ class MysqlQueue extends BaseQueue{
         if(!$this->tableExist()){
             throw new \Exception('table不存在'.$this->queue_table_name);
         }
-        return $this->db->count($this->queue_table_name);
+        $sql   = "SELECT COUNT(*) as `count` FROM {$this->queue_table_name}";
+        $info  = $this->db->query($sql)->fetch(PDO::FETCH_ASSOC);
+        return $info['count'];
     }
     /**
      * @inheritdoc
      */
     public function pop(){
         $result = false;
-        $this->db->query('begin');
+        $this->db->exec('begin');
         $sql_base = "SELECT * FROM %s ORDER BY id LIMIT 1 FOR UPDATE ";
         $sql = sprintf($sql_base,$this->queue_table_name);
         $row  = $this->db->query($sql)->fetch(\PDO::FETCH_ASSOC);
         if ($row) {
-            $flag = $this->db->delete($this->queue_table_name, [
-                'id' => $row['id']
-            ]);
+            $sql = "DELETE FROM {$this->queue_table_name} where id = {$row['id']}";
+            $flag = $this->db->exec($sql);
             if ($flag) {
                 $this->db->query('commit');
                 $data = json_decode($row['data'],true);
                 $result = new Message($data['data'],$data['ttl']);
             } else {
-                $this->db->query('rollback');
+                $this->db->exec('rollback');
             }
         } else {
-            $this->db->query('rollback');
+            $this->db->exec('rollback');
         }
         return $result;
     }
@@ -116,12 +128,12 @@ class MysqlQueue extends BaseQueue{
             throw new \Exception("TTL必须是数字");
         }
         if($ttl>=1){
-            $insert_data = [
-                'data'          => json_encode(['data'=>$data,'ttl'=>$ttl],JSON_UNESCAPED_UNICODE),
-                'create_time'   => time(),
-                'priority'      => 1,
-            ];
-            $this->db->insert($this->queue_table_name,$insert_data);
+            $sql = "INSERT INTO {$this->queue_table_name} (data,create_time,priority) VALUES (:data,:create_time,:priority)";
+            $this->db->prepare($sql, array(PDO::ATTR_CURSOR => PDO::CURSOR_FWDONLY))->execute([
+                ':data'        => json_encode(['data'=>$data,'ttl'=>$ttl],JSON_UNESCAPED_UNICODE),
+                ':create_time' => time(),
+                ':priority'    => 1,
+            ]);
         }
     }
 
@@ -130,7 +142,7 @@ class MysqlQueue extends BaseQueue{
     }
     private function tableExist(){
         $sql   = "show tables like '{$this->queue_table_name}'";
-        $count = $this->db->query($sql)->rowCount();
-        return $count > 0;
+        $list  = $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        return count($list) > 0;
     }
 }
