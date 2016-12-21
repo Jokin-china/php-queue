@@ -18,9 +18,7 @@ use PDO;
  * 1 没有其他中间件
  * 2 数据量较小
  *
- *
  * Interface TaskInterface
- * @package ctod\core
  */
 class MysqlQueue extends BaseQueue{
     /**
