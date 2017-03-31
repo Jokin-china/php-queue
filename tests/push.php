@@ -2,6 +2,7 @@
 require __DIR__.'/bootstrap.php';
 
 
+//$queue->init();
 
 
 $total = 10;

@@ -21,6 +21,12 @@ use PDO;
  * Interface TaskInterface
  */
 class MysqlQueue extends BaseQueue{
+
+    const STATUS_NATURE    = 0; //新建状态
+    const STATUS_POP       = 1; //出队列状态
+    const STATUS_SUCCESS   = 2; //成功状态
+    const STATUS_ERROR     = 3; //失败状态
+
     /**
      * 数据库实例
      * @var null
@@ -50,6 +56,8 @@ class MysqlQueue extends BaseQueue{
                     `priority` TINYINT(1) NOT NULL,
                     `data` TEXT NOT NULL,
                     `create_time` VARCHAR(45) NOT NULL DEFAULT 0,
+                    `pop_time` int NOT NULL DEFAULT 0,
+                    `ack_time` int NOT NULL DEFAULT 0,
                     `status` TINYINT(1) NOT NULL DEFAULT 0,
                     PRIMARY KEY (`id`)
                 ) ENGINE = InnoDB  DEFAULT CHARACTER SET = utf8";
@@ -84,7 +92,7 @@ class MysqlQueue extends BaseQueue{
         if(!$this->tableExist()){
             throw new \Exception('table不存在'.$this->queue_table_name);
         }
-        $sql   = "SELECT COUNT(*) as `count` FROM {$this->queue_table_name}";
+        $sql   = "SELECT COUNT(*) as `count` FROM {$this->queue_table_name} where status = 0";
         $info  = $this->db->query($sql)->fetch(PDO::FETCH_ASSOC);
         return $info['count'];
     }
@@ -94,16 +102,19 @@ class MysqlQueue extends BaseQueue{
     public function pop(){
         $result = false;
         $this->db->exec('begin');
-        $sql_base = "SELECT * FROM %s ORDER BY id LIMIT 1 FOR UPDATE ";
+        $sql_base = "SELECT * FROM %s WHERE status=0 ORDER BY id LIMIT 1 FOR UPDATE ";
         $sql = sprintf($sql_base,$this->queue_table_name);
         $row  = $this->db->query($sql)->fetch(\PDO::FETCH_ASSOC);
         if ($row) {
-            $sql = "DELETE FROM {$this->queue_table_name} where id = {$row['id']}";
+            $time = time();
+            $sql = "UPDATE {$this->queue_table_name} set `status`=1 ,`pop_time`={$time} where id = {$row['id']}";
             $flag = $this->db->exec($sql);
             if ($flag) {
                 $this->db->query('commit');
                 $data = json_decode($row['data'],true);
                 $result = new Message($data['data'],$data['ttl']);
+                $result->setId($row['id']);
+                $result->setQueue($this);
             } else {
                 $this->db->exec('rollback');
             }
@@ -133,6 +144,16 @@ class MysqlQueue extends BaseQueue{
                 ':priority'    => 1,
             ]);
         }
+    }
+    public function ack($id,$flag = true){
+        $time = time();
+        if($flag){
+            $status = 2;
+        }else{
+            $status = 3;
+        }
+        $sql = "UPDATE {$this->queue_table_name} set `status`=$status ,`ack_time`={$time} where id = {$id}";
+        $this->db->exec($sql);
     }
 
     public function isEmpty(){

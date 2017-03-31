@@ -82,4 +82,7 @@ class RedisQueue extends BaseQueue{
     public function getLength(){
         return $this->redis->lLen($this->queue_name);
     }
+    public function ack($id){
+
+    }
 }

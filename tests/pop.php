@@ -2,9 +2,12 @@
 require __DIR__.'/bootstrap.php';
 
 
+$message = $queue->pop();
 
-print_r($queue->pop());
+$message->ack(false);
 
+
+//print_r($queue->pop());
 
 
 

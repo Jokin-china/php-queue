@@ -29,6 +29,8 @@ interface QueueInterface {
      */
     public function push($data,$ttl = 0);
 
+    public function ack($id,$flag);
+
     /**
      * 队列是否为空
      * @return boolean
