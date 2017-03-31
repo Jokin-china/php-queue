@@ -62,7 +62,7 @@ class RedisQueue extends BaseQueue{
      * @throws \Exception
      */
     public function push($data,$ttl = 0){
-        $push_data = json_encode(['data'=>$data,'ttl'=>$ttl]);
+        $push_data = json_encode(['data'=>$data,'ttl'=>$ttl],JSON_UNESCAPED_UNICODE);
         $this->redis->lPush($this->queue_name,$push_data);
     }
 
